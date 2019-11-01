@@ -42,12 +42,54 @@
 
 #define _XTAL_FREQ   32000000
 
+void configPins(void);
+void configTimer1(void);
+void configInterrupts(void);
+
 void main(void) {
-    ANSELA = 0;
-    LATA = 0;
-    TRISAbits.TRISA2 = 0;
+    configPins();
+    configTimer1();
+    configInterrupts();
+    T1CONbits.TMR1ON = 1;
     while (1) {
-        LATAbits.LATA2 ^= 1;
-        __delay_ms(1000);
+        TMR1L = 0;
+        TMR1H = 0;
+        T1GCONbits.T1GGO_nDONE = 1;
+        while (T1GCONbits.T1GGO_nDONE == 1);
+        if (TMR1 < 1400) {
+            LATAbits.LATA4 = 0;
+            LATAbits.LATA5 = 0;
+        }
+        if (TMR1 > 1600) {
+            LATAbits.LATA4 = 1;
+            LATAbits.LATA5 = 1;
+        }
     }
+}
+
+void configPins(void) {
+    ANSELA = 0;
+    LATA = 0b00000000;
+    TRISA = 0b00000100;
+    T1GPPS = 0b00010;
+    PPSLOCK = 0x55;
+    PPSLOCK = 0xaa;
+    PPSLOCKbits.PPSLOCKED = 1;
+}
+void configTimer1(void) {
+    T1CONbits.TMR1CS = 0b00;  // Fosc/4
+    T1CONbits.T1CKPS = 0b11;  // 1:8 prescale
+    T1GCONbits.TMR1GE = 1;
+    T1GCONbits.T1GPOL = 1;
+    T1GCONbits.T1GSPM = 1;
+    T1GCONbits.T1GSS = 0b00;
+    
+}
+
+void configInterrupts(void) {
+    
+}
+
+void __interrupt() isr(void) {
+    
 }
