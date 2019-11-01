@@ -11,7 +11,7 @@
 
 // CONFIG1
 #pragma config FEXTOSC = OFF    // FEXTOSC External Oscillator mode Selection bits (Oscillator not enabled)
-#pragma config RSTOSC = HFINT32 // Power-up default value for COSC bits (HFINTOSC with 2x PLL (32MHz))
+#pragma config RSTOSC = HFINT1 // Power-up default value for COSC bits (HFINTOSC with 2x PLL (32MHz))
 #pragma config CLKOUTEN = OFF   // Clock Out Enable bit (CLKOUT function is disabled; I/O or oscillator function on OSC2)
 #pragma config CSWEN = OFF      // Clock Switch Enable bit (The NOSC and NDIV bits cannot be changed by user software)
 #pragma config FCMEN = OFF      // Fail-Safe Clock Monitor Enable (Fail-Safe Clock Monitor is disabled)
@@ -54,10 +54,10 @@ volatile OutputMode output = OUTPUT_OFF;
 volatile char failsafeEngaged = false;
 volatile unsigned int lastSignal = 0;
 
-#define _XTAL_FREQ   32000000U
+#define _XTAL_FREQ   1000000U
 
-#define ON_PULSE    (1600U)
-#define OFF_PULSE   (1400U)
+#define ON_PULSE    (400U)
+#define OFF_PULSE   (350U)
 
 void configPins(void);
 void configTimer1(void);
@@ -102,7 +102,7 @@ void configPins(void) {
 
 void configTimer1(void) {
     T1CONbits.TMR1CS = 0b00; // Fosc/4
-    T1CONbits.T1CKPS = 0b11; // 1:8 prescale
+    T1CONbits.T1CKPS = 0b00; // 1:1 prescale
     T1GCONbits.TMR1GE = 1;
     T1GCONbits.T1GPOL = 1;
     T1GCONbits.T1GSPM = 1;
