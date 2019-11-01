@@ -39,8 +39,25 @@
 // Use project enums instead of #define for ON and OFF.
 
 #include <xc.h>
+#include <stdbool.h>
 
-#define _XTAL_FREQ   32000000
+typedef enum {
+    FAIL_OFF, FAIL_ON, FAIL_HOLD
+} FailsafeMode;
+
+typedef enum {
+    OUTPUT_OFF, OUTPUT_ON
+} OutputMode;
+
+volatile FailsafeMode failsafeMode = FAIL_OFF;
+volatile OutputMode output = OUTPUT_OFF;
+volatile char failsafeEngaged = false;
+volatile unsigned int lastSignal = 0;
+
+#define _XTAL_FREQ   32000000U
+
+#define ON_PULSE    (1600U)
+#define OFF_PULSE   (1400U)
 
 void configPins(void);
 void configTimer1(void);
@@ -51,18 +68,24 @@ void main(void) {
     configTimer1();
     configInterrupts();
     T1CONbits.TMR1ON = 1;
+    T1GCONbits.T1GGO_nDONE = 1;
     while (1) {
-        TMR1L = 0;
-        TMR1H = 0;
-        T1GCONbits.T1GGO_nDONE = 1;
-        while (T1GCONbits.T1GGO_nDONE == 1);
-        if (TMR1 < 1400) {
-            LATAbits.LATA4 = 0;
-            LATAbits.LATA5 = 0;
-        }
-        if (TMR1 > 1600) {
-            LATAbits.LATA4 = 1;
-            LATAbits.LATA5 = 1;
+        if (!failsafeEngaged) {
+            if (output == OUTPUT_ON) {
+                LATAbits.LATA4 = 1;
+                LATAbits.LATA5 = 1;
+            } else {
+                LATAbits.LATA4 = 0;
+                LATAbits.LATA5 = 0;
+            }
+        } else {  //failsafeEngaged
+            if (failsafeMode == FAIL_ON) {
+                LATAbits.LATA4 = 1;
+                LATAbits.LATA5 = 1;
+            } else if (failsafeMode == FAIL_OFF) {
+                LATAbits.LATA4 = 0;
+                LATAbits.LATA5 = 0;
+            }
         }
     }
 }
@@ -76,20 +99,37 @@ void configPins(void) {
     PPSLOCK = 0xaa;
     PPSLOCKbits.PPSLOCKED = 1;
 }
+
 void configTimer1(void) {
-    T1CONbits.TMR1CS = 0b00;  // Fosc/4
-    T1CONbits.T1CKPS = 0b11;  // 1:8 prescale
+    T1CONbits.TMR1CS = 0b00; // Fosc/4
+    T1CONbits.T1CKPS = 0b11; // 1:8 prescale
     T1GCONbits.TMR1GE = 1;
     T1GCONbits.T1GPOL = 1;
     T1GCONbits.T1GSPM = 1;
     T1GCONbits.T1GSS = 0b00;
-    
+    TMR1L = 0;
+    TMR1H = 0;
 }
 
 void configInterrupts(void) {
-    
+    PIE1bits.TMR1GIE = 1;
+    PIR1bits.TMR1GIF = 0;
+    INTCONbits.PEIE = 1;
+    INTCONbits.GIE = 1;
 }
 
 void __interrupt() isr(void) {
-    
+    if (PIR1bits.TMR1GIF == 1) {
+        if (TMR1 <= OFF_PULSE) {
+            output = OUTPUT_OFF;
+        }
+        if (TMR1 >= ON_PULSE) {
+            output = OUTPUT_ON;
+        }
+        TMR1L = 0;
+        TMR1H = 0;
+        lastSignal = 0;
+        T1GCONbits.T1GGO_nDONE = 1;
+        PIR1bits.TMR1GIF = 0;
+    }
 }
