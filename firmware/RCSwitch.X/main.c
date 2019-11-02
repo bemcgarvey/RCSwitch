@@ -75,9 +75,11 @@ void startTimer1(void);
 void configTimer2(void);
 void startTimer2(void);
 void configInterrupts(void);
+void configPMD(void);
 
 void main(void) {
     configPins();
+    configPMD();
     configTimer1();
     configTimer2();
     configInterrupts();
@@ -146,6 +148,15 @@ void configInterrupts(void) {
     PIE1bits.TMR2IE = 1;
     INTCONbits.PEIE = 1;
     INTCONbits.GIE = 1;
+}
+
+void configPMD(void) {
+    PMD0 = 0b01000111;
+    PMD1 = 0b10000001;
+    PMD2 = 0b01100110;
+    PMD3 = 0b01110011;
+    PMD4 = 0b00100010;
+    PMD5 = 0b00000111;
 }
 
 void __interrupt() isr(void) {
