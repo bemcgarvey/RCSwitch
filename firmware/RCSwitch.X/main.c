@@ -49,26 +49,40 @@ typedef enum {
     OUTPUT_OFF, OUTPUT_ON
 } OutputMode;
 
+//Set failsafe mode to desired value before compiling
 volatile FailsafeMode failsafeMode = FAIL_OFF;
+
 volatile OutputMode output = OUTPUT_OFF;
 volatile char failsafeEngaged = false;
 volatile unsigned int lastSignal = 0;
 
 #define _XTAL_FREQ   1000000U
 
-#define ON_PULSE    (400U)
-#define OFF_PULSE   (350U)
+//define rx pulse length in microseconds required to turn on output switch.
+#define ON_US       1600U
+//define rx pulse length in microseconds required to turn off output switch.
+#define OFF_US      1400U
+//define failsafe (no pulse detected) time in milliseconds
+#define FAILSAFE_TIMEOUT    250
+
+//calculation of Timer1 values
+#define ON_PULSE    (ON_US / 4)
+#define OFF_PULSE   (OFF_US / 4)
 
 void configPins(void);
 void configTimer1(void);
+void startTimer1(void);
+void configTimer2(void);
+void startTimer2(void);
 void configInterrupts(void);
 
 void main(void) {
     configPins();
     configTimer1();
+    configTimer2();
     configInterrupts();
-    T1CONbits.TMR1ON = 1;
-    T1GCONbits.T1GGO_nDONE = 1;
+    startTimer1();
+    startTimer2();
     while (1) {
         if (!failsafeEngaged) {
             if (output == OUTPUT_ON) {
@@ -111,14 +125,38 @@ void configTimer1(void) {
     TMR1H = 0;
 }
 
+void startTimer1(void) {
+    T1CONbits.TMR1ON = 1;
+    T1GCONbits.T1GGO_nDONE = 1;
+}
+
+void configTimer2(void) {
+    TMR2 = 0;
+    PR2 = 250; 
+}
+
+void startTimer2(void) {
+    T2CONbits.TMR2ON = 1;
+}
+
 void configInterrupts(void) {
-    PIE1bits.TMR1GIE = 1;
     PIR1bits.TMR1GIF = 0;
+    PIE1bits.TMR1GIE = 1;
+    PIR1bits.TMR2IF = 0;
+    PIE1bits.TMR2IE = 1;
     INTCONbits.PEIE = 1;
     INTCONbits.GIE = 1;
 }
 
 void __interrupt() isr(void) {
+    if (PIR1bits.TMR2IF == 1) {
+        if (lastSignal < FAILSAFE_TIMEOUT) {
+            ++lastSignal;
+        } else {
+            failsafeEngaged = true;
+        }
+        PIR1bits.TMR2IF = 0;
+    }
     if (PIR1bits.TMR1GIF == 1) {
         if (TMR1 <= OFF_PULSE) {
             output = OUTPUT_OFF;
@@ -129,6 +167,7 @@ void __interrupt() isr(void) {
         TMR1L = 0;
         TMR1H = 0;
         lastSignal = 0;
+        failsafeEngaged = false;
         T1GCONbits.T1GGO_nDONE = 1;
         PIR1bits.TMR1GIF = 0;
     }
