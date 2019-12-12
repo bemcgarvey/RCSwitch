@@ -81,9 +81,9 @@ void main(void) {
             toggled = false;
             __delay_ms(DOUBLE_TOGGLE_TIME);
             if (toggled) {
-                pulse(2);
-            } else {
                 pulse(1);
+            } else {
+                pulse(2);
             }
             toggled = false;
         }
