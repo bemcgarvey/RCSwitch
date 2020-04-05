@@ -79,6 +79,9 @@ void configPMD(void);
 
 void main(void) {
     configPins();
+    LATAbits.LATA4 = 1;
+    __delay_ms(500);
+    LATAbits.LATA4 = 0;
     configPMD();
     configTimer1();
     configTimer2();
